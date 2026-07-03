@@ -3,114 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AWS CloudTech Quiz Pro</title>
+    <title>AWS CloudTech Quiz Master</title>
     <style>
-        body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; position: relative; }
+        body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 15px; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 550px; margin: 0 auto; min-height: 300px; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        /* タイトル一覧画面 */
+        h2 { margin-top: 0; color: #232f3e; font-size: 1.3rem; border-bottom: 2px solid #232f3e; padding-bottom: 8px; }
+        .menu-list { list-style: none; padding: 0; margin: 20px 0; }
+        .menu-item { background: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .menu-item:active { background: #e2e8f0; }
+        .badge-count { background: #232f3e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
+        
+        /* クイズ画面 */
         .meta-status { display: flex; justify-content: space-between; font-size: 0.85rem; color: #666; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        .q-text { font-size: 1.1rem; font-weight: bold; line-height: 1.5; white-space: pre-wrap; }
+        .q-text { font-size: 1.05rem; font-weight: bold; line-height: 1.5; white-space: pre-wrap; margin-bottom: 15px; }
         .btn { display: block; width: 100%; padding: 12px; margin-top: 15px; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; text-align: center; box-sizing: border-box; font-weight: bold; }
         .btn-primary { background: #232f3e; color: white; }
         .btn-secondary { background: #e2e8f0; color: #333; }
         .btn-success { background: #2ec4b6; color: white; }
         .btn-danger { background: #e71d36; color: white; }
-        .ans-box { display: none; margin-top: 20px; padding-top: 20px; border-top: 2px dashed #e2e8f0; }
-        .ans-text { font-size: 1.5rem; color: #ff9900; font-weight: bold; margin-bottom: 10px; }
+        .ans-box { display: none; margin-top: 15px; padding-top: 15px; border-top: 2px dashed #e2e8f0; }
+        .ans-text { font-size: 1.4rem; color: #ff9900; font-weight: bold; margin-bottom: 10px; }
         .commentary { font-size: 0.95rem; line-height: 1.6; background: #f8fafc; padding: 15px; border-radius: 6px; white-space: pre-wrap; margin-bottom: 15px; }
         .action-btns { display: flex; gap: 10px; margin-bottom: 15px; }
         .nav-btns { display: flex; gap: 10px; border-top: 1px solid #eee; padding-top: 15px; }
-        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: #232f3e; cursor: pointer; user-select: none; font-weight: bold; margin-top: 10px; }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: #232f3e; cursor: pointer; font-weight: bold; margin: 15px 0; }
         .checkbox-label input { width: 18px; height: 18px; }
         .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .badge-ok { background: #e6fffa; color: #00a389; border: 1px solid #81e6d9; }
         .badge-ng { background: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; }
+        
+        /* 管理画面（問題一覧） */
+        .manage-item { border-bottom: 1px solid #eee; padding: 12px 0; font-size: 0.9rem; }
+        .manage-q { font-weight: bold; margin-bottom: 5px; color: #4a5568; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="meta-status">
-        <span id="progress-text">準備中...</span>
-        <span id="history-badge"></span>
+    
+    <div id="screen-menu" class="screen active">
+        <h2>AWS クイズカテゴリ選択</h2>
+        <ul id="category-list" class="menu-list"></ul>
+        <button class="btn btn-secondary" onclick="switchScreen('screen-manage')">⚙ 覚えた問題の一覧・解除</button>
     </div>
 
-    <div id="question" class="q-text">問題が読み込まれません。</div>
-    
-    <label class="checkbox-label">
-        <input type="checkbox" id="mastered-check" onchange="toggleMastered()">
-        この問題はもう覚えた！(次回から除外)
-    </label>
-    
-    <button id="show-btn" class="btn btn-primary" onclick="showAnswer()">答えを見る</button>
-    
-    <div id="answer-section" class="ans-box">
-        <div id="answer" class="ans-text"></div>
-        <div id="commentary" class="commentary"></div>
-        
-        <div class="action-btns">
-            <button class="btn btn-danger" onclick="recordResult(false)" style="margin:0; flex:1;">✕ 間違えた</button>
-            <button class="btn btn-success" onclick="recordResult(true)" style="margin:0; flex:1;">◯ 正解した</button>
+    <div id="screen-quiz" class="screen">
+        <div class="meta-status">
+            <span id="progress-text">問題 0 / 0</span>
+            <span id="history-badge"></span>
         </div>
+        <div id="question" class="q-text"></div>
         
-        <div class="nav-btns">
-            <button class="btn btn-secondary" onclick="prevQuestion()" style="margin:0; width: 30%;">前へ</button>
-            <button class="btn btn-primary" onclick="nextQuestion()" style="margin:0; flex-grow:1;">次の未習得へ</button>
+        <label class="checkbox-label">
+            <input type="checkbox" id="mastered-check" onchange="toggleMastered()">
+            この問題はもう覚えた！(出題から除外)
+        </label>
+        
+        <button id="show-btn" class="btn btn-primary" onclick="showAnswer()">答えを見る</button>
+        
+        <div id="answer-section" class="ans-box">
+            <div id="answer" class="ans-text"></div>
+            <div id="commentary" class="commentary"></div>
+            <div class="action-btns">
+                <button class="btn btn-danger" onclick="recordResult(false)">✕ 不正解</button>
+                <button class="btn btn-success" onclick="recordResult(true)">◯ 正解</button>
+            </div>
+            <div class="nav-btns">
+                <button class="btn btn-secondary" onclick="switchScreen('screen-menu')" style="width: 30%;">戻る</button>
+                <button class="btn btn-primary" onclick="nextQuestion()" style="flex-grow:1;">次へ</button>
+            </div>
         </div>
     </div>
+
+    <div id="screen-manage" class="screen">
+        <h2>学習ステータス管理</h2>
+        <button class="btn btn-primary" onclick="switchScreen('screen-menu')" style="margin-bottom: 20px;">メニューに戻る</button>
+        <div id="manage-list"></div>
+    </div>
+
 </div>
 
 <script>
-    // スプレッドシートから持ってくるマスタデータ（※ID属性を一意に付与するのがポイントです）
-    const quizData = [
-        {
-            id: "aws_001",
-            q: `AWSにおける「リージョン（Region）」の説明として、最も適切なものはどれですか？\nA: 単一の巨大なデータセンター。\nB: 独立した複数のデータセンター群（拠点）。\nC: 1つの都市の中に設置されたサーバーのラック。`,
-            a: "B",
-            c: "AWSの「リージョン」とは、世界中に展開されている「地理的なエリア（拠点）」のことです。"
-        },
-        {
-            id: "aws_002",
-            q: `AWSの「エッジロケーション」の説明として、最も適切なものはどれですか？\nA: 地下に埋設されたデータセンター。\nB: 主にデータの配信（キャッシュ）に特化した拠点。\nC: テスト用の仮想環境。`,
-            a: "B",
-            c: "エッジロケーションは、主にデータの配信（キャッシュ）に特化した拠点です。"
-        }
-    ];
+// ★【データ登録用】スプレッドシートで「全選択⇒コピー」した内容を、以下のバッククォート( ` )の間にそのまま貼り付けてください。
+// 列の順番： 1列目:タイトル(カテゴリ), 2列目:問題文, 3列目:解答(A〜Dなど), 4列目:解説
+const rawCsvData = `
+1-2リージョン・AZ	AWSにおける「リージョン（Region）」の説明として、最も適切なものはどれですか？\nA: 世界中に配置されている、単一の巨大なデータセンター。\nB: 地理的に離れた世界各国の場所に存在する、独立した複数のデータセンター群（拠点）。\nC: 1つの都市の中に設置されたサーバーのラック。	B	AWSの「リージョン」とは、世界中に展開されている「地理的なエリア（拠点）」のことです。
+1-2リージョン・AZ	AWSの「アベイラビリティゾーン（AZ）」に関する説明として、正しいものはどれですか？\nA: 1つのリージョン内には必ず1つだけのAZが存在する。\nB: 異なるリージョン間にあるデータセンター同士が同じAZとして扱われる。\nC: 1つのリージョン内に存在し、それぞれが独立した電源や冷却設備を持つデータセンター群。	C	AZは、リージョンの中にある独立したデータセンター群のことです。
+1-3エッジロケーション	AWSの「エッジロケーション」の説明として、最も適切なものはどれですか？\nA: 地下に埋設されたデータセンター。\nB: 主にデータの配信（キャッシュ）に特化した拠点。\nC: テスト用の仮想環境。	B	エッジロケーションは主にデータの配信（キャッシュ）に特化した拠点です。
+`;
+</script>
 
+<script>
+    let allQuestions = [];
+    let currentCategoryQuestions = [];
     let currentIndex = 0;
-    // localStorageからユーザーデータをロード
-    let userProgress = JSON.parse(localStorage.getItem('aws_quiz_progress')) || {};
+    let currentCategory = "";
+    let userProgress = JSON.parse(localStorage.getItem('aws_quiz_v2_progress')) || {};
 
-    function saveUserData() {
-        localStorage.setItem('aws_quiz_progress', JSON.stringify(userProgress));
+    // TSV/CSVをパースしてオブジェクト配列に変換
+    function parseCsv(text) {
+        const lines = text.trim().split('\n');
+        const result = [];
+        let idCounter = 1;
+
+        lines.forEach(line => {
+            if (!line) return;
+            // スプレッドシートからのコピペはタブ区切り(TSV)になるため、タブとカンマ両方に対応
+            const columns = line.split(/\t|,/);
+            if (columns.length >= 3) {
+                result.push({
+                    id: `q_${idCounter++}`,
+                    category: columns[0].trim(),
+                    q: columns[1].trim().replace(/\\n/g, '\n'), // 改行コードの考慮
+                    a: columns[2].trim(),
+                    c: columns[3] ? columns[3].trim().replace(/\\n/g, '\n') : "解説はありません。"
+                });
+            }
+        });
+        return result;
+    }
+
+    function saveProgress() {
+        localStorage.setItem('aws_quiz_v2_progress', JSON.stringify(userProgress));
+    }
+
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        if (screenId === 'screen-menu') renderMenu();
+        if (screenId === 'screen-manage') renderManageList();
+    }
+
+    // メニュー（カテゴリ一覧）の描画
+    function renderMenu() {
+        const categories = {};
+        allQuestions.forEach(q => {
+            if (!categories[q.category]) categories[q.category] = { total: 0, active: 0 };
+            categories[q.category].total++;
+            
+            const status = userProgress[q.id] || { mastered: false };
+            if (!status.mastered) categories[q.category].active++;
+        });
+
+        const listEl = document.getElementById('category-list');
+        listEl.innerHTML = "";
+
+        Object.keys(categories).forEach(cat => {
+            const li = document.createElement('li');
+            li.className = "menu-item";
+            li.innerHTML = `
+                <span>${cat}</span>
+                <span class="badge-count">残り ${categories[cat].active} / 総数 ${categories[cat].total}</span>
+            `;
+            li.onclick = () => startQuiz(cat);
+            listEl.appendChild(li);
+        });
+    }
+
+    // クイズ開始
+    function startQuiz(category) {
+        currentCategory = category;
+        // 「マスター（覚えた）」になっていない問題だけを抽出
+        currentCategoryQuestions = allQuestions.filter(q => q.category === category && !(userProgress[q.id] || {}).mastered);
+        
+        if (currentCategoryQuestions.length === 0) {
+            alert('このカテゴリの未習得問題はすべてクリアしました！一覧からリセットできます。');
+            return;
+        }
+        currentIndex = 0;
+        switchScreen('screen-quiz');
+        renderQuestion();
     }
 
     function renderQuestion() {
-        const item = quizData[currentIndex];
-        const status = userProgress[item.id] || { mastered: false, lastResult: null };
-        
-        // 進捗・履歴表示
-        document.getElementById('progress-text').innerText = `問題 ${currentIndex + 1} / ${quizData.length}`;
-        const badge = document.getElementById('history-badge');
-        if (status.lastResult === true) {
-            badge.className = "badge badge-ok";
-            badge.innerText = "直近: ◯ 正解";
-        } else if (status.lastResult === false) {
-            badge.className = "badge badge-ng";
-            badge.innerText = "直近: ✕ 不正解";
-        } else {
-            badge.className = "";
-            badge.innerText = "未解答";
+        if (currentCategoryQuestions.length === 0) {
+            alert('すべての問題を解き終わりました！');
+            switchScreen('screen-menu');
+            return;
         }
+        if (currentIndex >= currentCategoryQuestions.length) currentIndex = 0;
 
-        // チェックボックスの状態反映
+        const item = currentCategoryQuestions[currentIndex];
+        const status = userProgress[item.id] || { mastered: false, lastResult: null };
+
+        document.getElementById('progress-text').innerText = `${currentCategory} (${currentIndex + 1} / ${currentCategoryQuestions.length})`;
+        
+        const badge = document.getElementById('history-badge');
+        if (status.lastResult === true) { badge.className = "badge badge-ok"; badge.innerText = "直近: ◯"; }
+        else if (status.lastResult === false) { badge.className = "badge badge-ng"; badge.innerText = "直近: ✕"; }
+        else { badge.className = ""; badge.innerText = ""; }
+
         document.getElementById('mastered-check').checked = status.mastered;
-
-        // 問題テキスト
-        document.getElementById('question').innerText = `Q. \n${item.q}`;
+        document.getElementById('question').innerText = item.q;
         document.getElementById('answer').innerText = `正解: ${item.a}`;
         document.getElementById('commentary').innerText = item.c;
-        
-        // UI初期化
+
         document.getElementById('answer-section').style.display = 'none';
         document.getElementById('show-btn').style.display = 'block';
     }
@@ -120,62 +211,56 @@
         document.getElementById('show-btn').style.display = 'none';
     }
 
-    // 「覚えた」のトグル
     function toggleMastered() {
-        const item = quizData[currentIndex];
+        const item = currentCategoryQuestions[currentIndex];
         if (!userProgress[item.id]) userProgress[item.id] = { mastered: false, lastResult: null };
-        
         userProgress[item.id].mastered = document.getElementById('mastered-check').checked;
-        saveUserData();
+        saveProgress();
     }
 
-    // 正誤の記録
     function recordResult(isCorrect) {
-        const item = quizData[currentIndex];
+        const item = currentCategoryQuestions[currentIndex];
         if (!userProgress[item.id]) userProgress[item.id] = { mastered: false, lastResult: null };
-        
         userProgress[item.id].lastResult = isCorrect;
-        saveUserData();
-        
-        // 判定後、自動で次の「まだ覚えていない問題」へ進む
+        saveProgress();
         nextQuestion();
     }
 
-    // 次の未習得問題を探して移動
     function nextQuestion() {
-        let found = false;
-        let loopCount = 0;
-        let index = currentIndex;
-
-        while (loopCount < quizData.length) {
-            index = (index + 1) % quizData.length; // ループさせる
-            const item = quizData[index];
-            const status = userProgress[item.id] || { mastered: false };
-            
-            if (!status.mastered) {
-                currentIndex = index;
-                found = true;
-                break;
-            }
-            loopCount++;
-        }
-
-        if (found) {
-            renderQuestion();
-        } else {
-            alert('すべての問題を「覚えた！」状態にしました！おめでとうございます！');
-        }
+        // 現在の条件でフィルタリングし直す（「覚えた」チェックで動的に除外するため）
+        currentCategoryQuestions = allQuestions.filter(q => q.category === currentCategory && !(userProgress[q.id] || {}).mastered);
+        renderQuestion();
     }
 
-    function prevQuestion() {
-        if (currentIndex > 0) {
-            currentIndex--;
-            renderQuestion();
-        }
+    // 管理画面（覚えた問題の解除一覧）の描画
+    function renderManageList() {
+        const container = document.getElementById('manage-list');
+        container.innerHTML = "";
+
+        allQuestions.forEach(q => {
+            const status = userProgress[q.id] || { mastered: false };
+            const div = document.createElement('div');
+            div.className = "manage-item";
+            div.innerHTML = `
+                <div class="manage-q">[${q.category}] ${q.q.split('\n')[0]}...</div>
+                <label class="checkbox-label" style="margin: 5px 0 0 0;">
+                    <input type="checkbox" ${status.mastered ? 'checked' : ''} onchange="remoteToggleMastered('${q.id}', this.checked)">
+                    出題対象から除外（覚えた）
+                </label>
+            `;
+            container.appendChild(div);
+        });
     }
 
-    // 初期起動
-    renderQuestion();
+    function remoteToggleMastered(id, isMastered) {
+        if (!userProgress[id]) userProgress[id] = { mastered: false, lastResult: null };
+        userProgress[id].mastered = isMastered;
+        saveProgress();
+    }
+
+    // アプリ起動処理
+    allQuestions = parseCsv(rawCsvData);
+    renderMenu();
 </script>
 </body>
 </html>
