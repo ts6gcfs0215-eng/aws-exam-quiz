@@ -15,7 +15,7 @@
         .menu-list { list-style: none; padding: 0; margin: 20px 0; }
         .menu-item { background: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .menu-item:active { background: #e2e8f0; }
-        .badge-count { background: #232f3e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
+        .badge-count { background: #232f3e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-left: 10px; flex-shrink: 0; }
         
         /* クイズ画面 */
         .meta-status { display: flex; justify-content: space-between; font-size: 0.85rem; color: #666; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
@@ -39,13 +39,19 @@
         /* 管理画面（問題一覧） */
         .manage-item { border-bottom: 1px solid #eee; padding: 12px 0; font-size: 0.9rem; }
         .manage-q { font-weight: bold; margin-bottom: 5px; color: #4a5568; }
+        
+        /* ローディング表示 */
+        .loading { text-align: center; font-weight: bold; color: #666; padding: 40px 0; }
     </style>
 </head>
 <body>
 
 <div class="card">
+    <div id="screen-loading" class="screen active">
+        <div class="loading">⏳ 問題データを読み込み中...</div>
+    </div>
     
-    <div id="screen-menu" class="screen active">
+    <div id="screen-menu" class="screen">
         <h2>AWS クイズカテゴリ選択</h2>
         <ul id="category-list" class="menu-list"></ul>
         <button class="btn btn-secondary" onclick="switchScreen('screen-manage')">⚙ 覚えた問題の一覧・解除</button>
@@ -84,18 +90,7 @@
         <button class="btn btn-primary" onclick="switchScreen('screen-menu')" style="margin-bottom: 20px;">メニューに戻る</button>
         <div id="manage-list"></div>
     </div>
-
 </div>
-
-<script>
-// ★【データ登録用】スプレッドシートで「全選択⇒コピー」した内容を、以下のバッククォート( ` )の間にそのまま貼り付けてください。
-// 列の順番： 1列目:タイトル(カテゴリ), 2列目:問題文, 3列目:解答(A〜Dなど), 4列目:解説
-const rawCsvData = `
-1-2リージョン・AZ	AWSにおける「リージョン（Region）」の説明として、最も適切なものはどれですか？\nA: 世界中に配置されている、単一の巨大なデータセンター。\nB: 地理的に離れた世界各国の場所に存在する、独立した複数のデータセンター群（拠点）。\nC: 1つの都市の中に設置されたサーバーのラック。	B	AWSの「リージョン」とは、世界中に展開されている「地理的なエリア（拠点）」のことです。
-1-2リージョン・AZ	AWSの「アベイラビリティゾーン（AZ）」に関する説明として、正しいものはどれですか？\nA: 1つのリージョン内には必ず1つだけのAZが存在する。\nB: 異なるリージョン間にあるデータセンター同士が同じAZとして扱われる。\nC: 1つのリージョン内に存在し、それぞれが独立した電源や冷却設備を持つデータセンター群。	C	AZは、リージョンの中にある独立したデータセンター群のことです。
-1-3エッジロケーション	AWSの「エッジロケーション」の説明として、最も適切なものはどれですか？\nA: 地下に埋設されたデータセンター。\nB: 主にデータの配信（キャッシュ）に特化した拠点。\nC: テスト用の仮想環境。	B	エッジロケーションは主にデータの配信（キャッシュ）に特化した拠点です。
-`;
-</script>
 
 <script>
     let allQuestions = [];
@@ -104,21 +99,38 @@ const rawCsvData = `
     let currentCategory = "";
     let userProgress = JSON.parse(localStorage.getItem('aws_quiz_v2_progress')) || {};
 
-    // TSV/CSVをパースしてオブジェクト配列に変換
+    // 外部のCSV(TSV)ファイルを非同期で読み込む関数
+    async function loadQuestionsFromExternalFile() {
+        try {
+            // 同一ディレクトリにある questions.csv をリクエスト
+            const response = await fetch('questions.csv');
+            if (!response.ok) {
+                throw new Error('CSVファイルの読み込みに失敗しました。');
+            }
+            const text = await response.text();
+            allQuestions = parseCsv(text);
+            
+            // 読み込みが完了したらメニュー画面へ移行
+            switchScreen('screen-menu');
+        } catch (error) {
+            document.getElementById('screen-loading').innerHTML = `<div class="loading" style="color:red;">❌ エラー: ${error.message}<br>questions.csvが正しく配置されているか確認してください。</div>`;
+        }
+    }
+
     function parseCsv(text) {
-        const lines = text.trim().split('\n');
+        const lines = text.split('\n');
         const result = [];
         let idCounter = 1;
 
         lines.forEach(line => {
-            if (!line) return;
-            // スプレッドシートからのコピペはタブ区切り(TSV)になるため、タブとカンマ両方に対応
-            const columns = line.split(/\t|,/);
+            if (!line || line.trim() === "") return;
+            const columns = line.split('\t');
+            
             if (columns.length >= 3) {
                 result.push({
                     id: `q_${idCounter++}`,
                     category: columns[0].trim(),
-                    q: columns[1].trim().replace(/\\n/g, '\n'), // 改行コードの考慮
+                    q: columns[1].trim().replace(/\\n/g, '\n'),
                     a: columns[2].trim(),
                     c: columns[3] ? columns[3].trim().replace(/\\n/g, '\n') : "解説はありません。"
                 });
@@ -138,7 +150,6 @@ const rawCsvData = `
         if (screenId === 'screen-manage') renderManageList();
     }
 
-    // メニュー（カテゴリ一覧）の描画
     function renderMenu() {
         const categories = {};
         allQuestions.forEach(q => {
@@ -164,10 +175,8 @@ const rawCsvData = `
         });
     }
 
-    // クイズ開始
     function startQuiz(category) {
         currentCategory = category;
-        // 「マスター（覚えた）」になっていない問題だけを抽出
         currentCategoryQuestions = allQuestions.filter(q => q.category === category && !(userProgress[q.id] || {}).mastered);
         
         if (currentCategoryQuestions.length === 0) {
@@ -227,12 +236,10 @@ const rawCsvData = `
     }
 
     function nextQuestion() {
-        // 現在の条件でフィルタリングし直す（「覚えた」チェックで動的に除外するため）
         currentCategoryQuestions = allQuestions.filter(q => q.category === currentCategory && !(userProgress[q.id] || {}).mastered);
         renderQuestion();
     }
 
-    // 管理画面（覚えた問題の解除一覧）の描画
     function renderManageList() {
         const container = document.getElementById('manage-list');
         container.innerHTML = "";
@@ -258,9 +265,8 @@ const rawCsvData = `
         saveProgress();
     }
 
-    // アプリ起動処理
-    allQuestions = parseCsv(rawCsvData);
-    renderMenu();
+    // アプリ起動時に外部ファイルを読み込む
+    loadQuestionsFromExternalFile();
 </script>
 </body>
 </html>
