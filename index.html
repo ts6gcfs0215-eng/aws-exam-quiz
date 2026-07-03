@@ -99,18 +99,14 @@
     let currentCategory = "";
     let userProgress = JSON.parse(localStorage.getItem('aws_quiz_v2_progress')) || {};
 
-    // 外部のCSV(TSV)ファイルを非同期で読み込む関数
     async function loadQuestionsFromExternalFile() {
         try {
-            // 同一ディレクトリにある questions.csv をリクエスト
             const response = await fetch('questions.csv');
             if (!response.ok) {
                 throw new Error('CSVファイルの読み込みに失敗しました。');
             }
             const text = await response.text();
             allQuestions = parseCsv(text);
-            
-            // 読み込みが完了したらメニュー画面へ移行
             switchScreen('screen-menu');
         } catch (error) {
             document.getElementById('screen-loading').innerHTML = `<div class="loading" style="color:red;">❌ エラー: ${error.message}<br>questions.csvが正しく配置されているか確認してください。</div>`;
@@ -130,9 +126,9 @@
                 result.push({
                     id: `q_${idCounter++}`,
                     category: columns[0].trim(),
-                    q: columns[1].trim().replace(/\\n/g, '\n'),
+                    q: columns[1].trim(), // そのまま読み込む
                     a: columns[2].trim(),
-                    c: columns[3] ? columns[3].trim().replace(/\\n/g, '\n') : "解説はありません。"
+                    c: columns[3] ? columns[3].trim() : "解説はありません。"
                 });
             }
         });
@@ -207,9 +203,11 @@
         else { badge.className = ""; badge.innerText = ""; }
 
         document.getElementById('mastered-check').checked = status.mastered;
-        document.getElementById('question').innerText = item.q;
+        
+        // ★ innerText から innerHTML に変更（<br>タグを解釈させるため）
+        document.getElementById('question').innerHTML = item.q;
         document.getElementById('answer').innerText = `正解: ${item.a}`;
-        document.getElementById('commentary').innerText = item.c;
+        document.getElementById('commentary').innerHTML = item.c;
 
         document.getElementById('answer-section').style.display = 'none';
         document.getElementById('show-btn').style.display = 'block';
@@ -248,8 +246,9 @@
             const status = userProgress[q.id] || { mastered: false };
             const div = document.createElement('div');
             div.className = "manage-item";
+            // 管理画面のタイトルもHTMLを許可してすっきりさせる
             div.innerHTML = `
-                <div class="manage-q">[${q.category}] ${q.q.split('\n')[0]}...</div>
+                <div class="manage-q">[${q.category}] ${q.q.split('<br>')[0]}...</div>
                 <label class="checkbox-label" style="margin: 5px 0 0 0;">
                     <input type="checkbox" ${status.mastered ? 'checked' : ''} onchange="remoteToggleMastered('${q.id}', this.checked)">
                     出題対象から除外（覚えた）
@@ -265,7 +264,6 @@
         saveProgress();
     }
 
-    // アプリ起動時に外部ファイルを読み込む
     loadQuestionsFromExternalFile();
 </script>
 </body>
